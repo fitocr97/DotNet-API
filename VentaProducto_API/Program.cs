@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using VentaProducto_API;
 using VentaProducto_API.Datos;
 
 internal class Program
@@ -19,6 +20,7 @@ internal class Program
             option.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
         });
 
+        builder.Services.AddAutoMapper(typeof(MappingConfig));
 
         var app = builder.Build();
 

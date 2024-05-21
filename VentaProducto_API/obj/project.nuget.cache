@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "Vbet/9LxfhmU93cEKm0NcvEiUasZBEZsAqOK76PwjbLdToIHKMoIpip6au+Y51hXjaQHulG+Hg4pXFkyCm9B1g==",
+  "dgSpecHash": "d8fpEZjtRzndG9hrEI6N/LPcMZYk+7+mw+QE4FyO+QlynHZ5U8+Dd2OpOUVnIoYdots9chXY7OzOyzVF5p/P+g==",
   "success": true,
   "projectFilePath": "C:\\Users\\fito\\source\\repos\\VentaProducto\\VentaProducto_API\\VentaProducto_API.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\fito\\.nuget\\packages\\automapper\\12.0.0\\automapper.12.0.0.nupkg.sha512",
+    "C:\\Users\\fito\\.nuget\\packages\\automapper.extensions.microsoft.dependencyinjection\\12.0.0\\automapper.extensions.microsoft.dependencyinjection.12.0.0.nupkg.sha512",
     "C:\\Users\\fito\\.nuget\\packages\\azure.core\\1.24.0\\azure.core.1.24.0.nupkg.sha512",
     "C:\\Users\\fito\\.nuget\\packages\\azure.identity\\1.6.0\\azure.identity.1.6.0.nupkg.sha512",
     "C:\\Users\\fito\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",

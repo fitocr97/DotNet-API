@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,22 +17,30 @@ namespace VentaProducto_API.Controllers
     {
         private readonly ILogger<ProductoController> _logger; //variable privadas _variable "_"
         private readonly ApplicationDbContext _db;
-        public ProductoController(ILogger<ProductoController> logger, ApplicationDbContext db) //injectamos el loger
+        private readonly IMapper _mapper;
+        public ProductoController(ILogger<ProductoController> logger, ApplicationDbContext db, IMapper  mapper) //injectamos el loger
         {
 
             _logger = logger;
             _db = db;
+            _mapper = mapper;
 
         }
 
         //Get todos
         [HttpGet] //verbo http
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public ActionResult<IEnumerable<ProductoDto>> GetProductos()
+        public async Task<ActionResult<IEnumerable<ProductoDto>>> GetProductos()
         {
             _logger.LogInformation("todas las villas se estan opteniendo"); //mensaje en consola
             //return Ok(ProductoStore.productoList); //retornar los datos que esten en esa lista esto vieja forma desde array clase productStore
-            return Ok(_db.Productos.ToList());//select de la tabla 
+
+            //usando mapper
+            IEnumerable<Producto> productoList = await _db.Productos.ToListAsync();
+            return Ok(_mapper.Map<IEnumerable<ProductoDto>>(productoList));//select de la tabla 
+
+            //sin mapper
+            //return Ok(await _db.Productos.ToListAsync());//select de la tabla 
         }
 
         //Get one
@@ -42,7 +51,7 @@ namespace VentaProducto_API.Controllers
         //[ProducesResponseType(400)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         //[ProducesResponseType(404)]
-        public ActionResult<ProductoDto> GetProducto(int id)
+        public async Task<ActionResult<ProductoDto>> GetProducto(int id)
         {
             //validar para retornar status
             if (id == 0)
@@ -51,13 +60,16 @@ namespace VentaProducto_API.Controllers
             }
 
             //var producto = ProductoStore.productoList.FirstOrDefault(x => x.Id == id);
-            var producto = _db.Productos.FirstOrDefault(x => x.Id == id); //1 registro en base al id
+            var producto = await _db.Productos.FirstOrDefaultAsync(x => x.Id == id); //1 registro en base al id
             if (producto == null)
             {
                 return NotFound(); //no encontro registro 404
             }
+            //normal
+            //return Ok(producto); //traer de listado por medio de lamda el id  y lo comparamos por el que pasamos
 
-            return Ok(producto); //traer de listado por medio de lamda el id  y lo comparamos por el que pasamos
+            //automaper
+            return Ok(_mapper.Map<ProductoDto>(producto));
         }
 
         //create
@@ -65,7 +77,7 @@ namespace VentaProducto_API.Controllers
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public ActionResult<ProductoDto> CreateProducto([FromBody] ProductoDto producto) //dto datos que psasamos a travez del post
+        public async Task<ActionResult<ProductoDto>> CreateProducto([FromBody] ProductoCreateDto producto) //dto datos que psasamos a travez del post
         {
 
 
@@ -78,7 +90,7 @@ namespace VentaProducto_API.Controllers
             //    ModelState.AddModelError("El nombre ya existe", "El nombre del producto ya existe");
             //    return BadRequest(ModelState); //retornar un state custom
             //}
-            if (_db.Productos.FirstOrDefault(x => x.Nombre.ToLower() == producto.Nombre.ToLower()) != null)
+            if (await _db.Productos.FirstOrDefaultAsync(x => x.Nombre.ToLower() == producto.Nombre.ToLower()) != null)
             {
                 ModelState.AddModelError("El nombre ya existe", "El nombre del producto ya existe");
                 return BadRequest(ModelState); //retornar un state custom
@@ -86,16 +98,17 @@ namespace VentaProducto_API.Controllers
 
             if (producto == null)
             {
-                return BadRequest(); //retorna 400
-            } 
+                return BadRequest(producto); //retorna 400
+            }
 
+            /* se elimian esta validacion al usar ProductoCreateDto
             if(producto.Id > 0)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError); //retorna 500
-            }
+            }*/
 
-            //usada
-            Producto modelo = new()
+            //usada antes del authomaper
+            /*Producto modelo = new()
             {
                 Nombre = producto.Nombre,
                 Precio = producto.Precio,
@@ -103,30 +116,33 @@ namespace VentaProducto_API.Controllers
                 Cantidad = producto.Cantidad,
                 Tamaño = producto.Tamaño,
                 ImageUrl = producto.ImageUrl
-            };
+            };*/
 
-            _db.Productos.Add(modelo); //methodo de entity framework add
-            _db.SaveChanges(); //reflejar en la db
+            //usando mapper para hacer mas limpio no usar lo de arriba
+            Producto modelo = _mapper.Map<Producto>(producto);
+
+            await _db.Productos.AddAsync(modelo); //methodo de entity framework add
+            await _db.SaveChangesAsync(); //reflejar en la db
 
             //forma vieja
             //producto.Id = ProductoStore.productoList.OrderByDescending(x=>x.Id).FirstOrDefault().Id +1; //saca el ultimo id de la lista y le suma 1
             //ProductoStore.productoList.Add(producto); //agregar producto a la lista
 
-            return CreatedAtRoute("GetProducto", new {id = producto.Id}, producto); // ruta, id, modelo(todo el producto)
+            return CreatedAtRoute("GetProducto", new {id = modelo.Id}, modelo); // ruta, id, modelo(todo el producto)
         }
 
-        //delete
+        //delete no ocupa mapeo
         [HttpDelete("id")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public IActionResult DeleteProducto(int id) //LA INTEFAZ NO UTILIZA EL MODELO retorna no content
+        public async Task<IActionResult> DeleteProducto(int id) //LA INTEFAZ NO UTILIZA EL MODELO retorna no content
         {
             if (id==0)
             {
                 return BadRequest();
             }
-            var producto = _db.Productos.FirstOrDefault(x => x.Id == id); //cambio
+            var producto = await _db.Productos.FirstOrDefaultAsync(x => x.Id == id); //cambio
             //var producto = ProductoStore.productoList.FirstOrDefault(x => x.Id == id);
             if (producto == null)
             {
@@ -135,7 +151,7 @@ namespace VentaProducto_API.Controllers
 
             //ProductoStore.productoList.Remove(producto);
             _db.Productos.Remove(producto);
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
 
             return NoContent();
         }
@@ -144,7 +160,7 @@ namespace VentaProducto_API.Controllers
         [HttpPut("id")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public IActionResult UpdateProducto(int id, [FromBody] ProductoDto producto)
+        public async Task <IActionResult> UpdateProducto(int id, [FromBody] ProductoUpdateDto producto)
         {
             if(producto == null || id != producto.Id)
             {
@@ -156,7 +172,10 @@ namespace VentaProducto_API.Controllers
             //producto.Precio = producto.Precio;
             //producto.Cantidad = producto.Cantidad;
 
-            var modelo = _db.Productos.FirstOrDefault(x => x.Id == id);
+
+            //antes del mapper
+            /*
+            var modelo = await _db.Productos.FirstOrDefaultAsync(x => x.Id == id);
             if (modelo == null)
             {
                 return NotFound();
@@ -167,10 +186,13 @@ namespace VentaProducto_API.Controllers
             modelo.Detalle = producto.Detalle;
             modelo.Cantidad = producto.Cantidad;
             modelo.Tamaño = producto.Tamaño;
-            modelo.ImageUrl = producto.ImageUrl;
+            modelo.ImageUrl = producto.ImageUrl;*/
+
+            //usando mapper
+            Producto modelo = _mapper.Map<Producto>(producto);
 
             _db.Productos.Update(modelo); //methodo de entity framework Update
-            _db.SaveChanges(); //reflejar en la db
+            await _db.SaveChangesAsync(); //reflejar en la db
 
             return NoContent();
 
@@ -180,7 +202,7 @@ namespace VentaProducto_API.Controllers
         [HttpPatch("id")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public IActionResult UpdatePartialProducto(int id, JsonPatchDocument<ProductoDto> patchDto)
+        public async Task<IActionResult> UpdatePartialProducto(int id, JsonPatchDocument<ProductoUpdateDto> patchDto)
         {
             if (patchDto == null || id == 0)
             {
@@ -188,9 +210,11 @@ namespace VentaProducto_API.Controllers
             }
 
             //var producto = ProductoStore.productoList.FirstOrDefault(x => x.Id == id);
-            var producto = _db.Productos.AsNoTracking().FirstOrDefault(x=> x.Id == id); //se agrego asnotracking
+            var producto = await _db.Productos.AsNoTracking().FirstOrDefaultAsync(x=> x.Id == id); //se agrego asnotracking
 
-            ProductoDto productoDto = new()
+            //antes del mapper
+            /*
+            ProductoUpdateDto productoDto = new()
             {
                 Id = producto.Id,
                 Nombre = producto.Nombre,
@@ -199,9 +223,13 @@ namespace VentaProducto_API.Controllers
                 Cantidad = producto.Cantidad,
                 Tamaño = producto.Tamaño,
                 ImageUrl = producto.ImageUrl
-            };
-            
-            if(producto == null) return BadRequest();
+            };*/
+
+            //despues del mapper
+            ProductoUpdateDto productoDto = _mapper.Map<ProductoUpdateDto>(producto);
+
+
+            if (producto == null) return BadRequest();
 
             //patchDto.ApplyTo(producto, ModelState); //methodo propio de patch
             patchDto.ApplyTo(productoDto, ModelState);
@@ -210,7 +238,8 @@ namespace VentaProducto_API.Controllers
             {
                 return BadRequest(ModelState);
             }
-
+            //antes del mapper igual que arriba
+            /*
             Producto modelo = new()
             {
                 Id = productoDto.Id,
@@ -220,10 +249,13 @@ namespace VentaProducto_API.Controllers
                 Cantidad = productoDto.Cantidad,
                 Tamaño = productoDto.Tamaño,
                 ImageUrl = productoDto.ImageUrl
-            };
+            };*/
+
+            //despues del mapper
+            Producto modelo = _mapper.Map<Producto>(productoDto);
 
             _db.Productos.Update(modelo);
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
             return NoContent();
 
         }
